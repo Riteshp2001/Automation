@@ -47,8 +47,12 @@ jobs:
           DEFAULT_TIMEZONE: ${{ secrets.DEFAULT_TIMEZONE }}
           DEFAULT_SCHEDULE_CRON: ${{ secrets.DEFAULT_SCHEDULE_CRON }}
           ENABLE_UPLOADS: "true"
-          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
-          MEDIA_PROXY_SECRET: ${{ secrets.MEDIA_PROXY_SECRET }}
+          PUBLIC_MEDIA_PROVIDER: github-release
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_MEDIA_REPOSITORY: ${{ github.repository }}
+          GITHUB_MEDIA_RELEASE_TAG: automation-media
+          GITHUB_MEDIA_RELEASE_NAME: Automation Media
+          GITHUB_MEDIA_ASSET_PREFIX: automation-media
           MAX_UPLOAD_RETRIES: ${{ secrets.MAX_UPLOAD_RETRIES }}
           MAX_VIDEO_SIZE_MB: ${{ secrets.MAX_VIDEO_SIZE_MB }}
           STATUS_POLL_ATTEMPTS: ${{ secrets.STATUS_POLL_ATTEMPTS }}
