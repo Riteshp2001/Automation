@@ -1,0 +1,22 @@
+{
+  "name": "car-reels-automation",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Config-driven Vercel automation for posting luxury lifestyle car reels from Google Drive to Instagram.",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "run": "node index.js run",
+    "preview": "node index.js preview",
+    "status": "node index.js status",
+    "meta:resolve": "node scripts/resolve-meta.js",
+    "check": "node -e \"require('./api/cron.js'); require('./api/manual.js'); require('./api/status.js'); console.log('ok')\""
+  },
+  "dependencies": {
+    "cron-parser": "^5.5.0",
+    "dotenv": "^17.3.1",
+    "googleapis": "^171.4.0",
+    "zod": "^4.3.6"
+  }
+}

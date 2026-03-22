@@ -1,0 +1,82 @@
+{
+  "enabled": true,
+  "schedule": {
+    "cron": "0 */5 * * *",
+    "timezone": "Asia/Kolkata"
+  },
+  "queue": {
+    "order": "oldest-first",
+    "postedHandling": "state-file",
+    "archiveFolderId": "",
+    "processingFolderId": "",
+    "stateFolderId": "",
+    "stateFileName": ".car-reels-state.json",
+    "allowedExtensions": [
+      "mp4",
+      "mov",
+      "m4v",
+      "webm"
+    ],
+    "minSizeMb": 1
+  },
+  "channel": {
+    "name": "Velvet Velocity",
+    "handle": "@yourhandle",
+    "voice": "luxury lifestyle, aspirational, cinematic, polished, elite but not loud",
+    "cta": "Follow for daily luxury motion and elite machine energy.",
+    "signature": "Curated for the ones who notice the details.",
+    "hashtags": [
+      "#LuxuryLifestyle",
+      "#LuxuryCars",
+      "#ExoticCars",
+      "#SupercarLife",
+      "#RichVibesOnly",
+      "#MillionaireMindset",
+      "#DriveInStyle",
+      "#LuxuryReels"
+    ],
+    "angleKeywords": [
+      "after-hours presence",
+      "private-club energy",
+      "quiet wealth",
+      "first-class motion",
+      "city-light confidence",
+      "tailored power"
+    ]
+  },
+  "captions": {
+    "mode": "hybrid",
+    "fallbackToTemplate": true,
+    "model": "openai/gpt-oss-20b",
+    "temperature": 0.9,
+    "maxHashtags": 12,
+    "maxCaptionLength": 1800,
+    "includeFileKeywords": true,
+    "headlinePool": [
+      "Presence speaks before the engine does.",
+      "Luxury moves different after dark.",
+      "Built for the kind of entrance people remember.",
+      "When the details are this sharp, silence gets louder."
+    ],
+    "vibePool": [
+      "Leather, lights, and zero compromise.",
+      "Every frame feels like a members-only invitation.",
+      "Precision dressed in confidence.",
+      "Calm on the surface, expensive in every detail."
+    ],
+    "ctaPool": [
+      "Follow for more luxury machine moments.",
+      "Stay close for more elite lifestyle reels.",
+      "More cinematic luxury drops every week.",
+      "Follow if your taste runs premium."
+    ]
+  },
+  "filters": {
+    "nameMustContain": [],
+    "nameMustNotContain": [
+      "draft",
+      "test"
+    ]
+  },
+  "dryRun": false
+}
