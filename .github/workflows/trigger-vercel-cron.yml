@@ -3,8 +3,7 @@ name: Trigger Vercel Cron Endpoint
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */5 * * *"
-      timezone: "Asia/Kolkata"
+    - cron: "30 4,9,14,18,23 * * *"
 
 jobs:
   trigger-cron:
