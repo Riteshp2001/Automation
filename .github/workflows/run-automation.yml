@@ -1,0 +1,79 @@
+name: Run Automation
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Force a post immediately
+        required: false
+        default: "false"
+  schedule:
+    - cron: "30 4,9,14,18,23 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  post-next-reel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run the next scheduled upload
+        env:
+          GOOGLE_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
+          GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY }}
+          GOOGLE_DRIVE_SOURCE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_SOURCE_FOLDER_ID }}
+          GOOGLE_DRIVE_CONFIG_FILE_NAME: ${{ secrets.GOOGLE_DRIVE_CONFIG_FILE_NAME }}
+          INSTAGRAM_AUTH_MODE: ${{ secrets.INSTAGRAM_AUTH_MODE }}
+          INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
+          META_USER_ACCESS_TOKEN: ${{ secrets.META_USER_ACCESS_TOKEN }}
+          INSTAGRAM_PAGE_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_PAGE_ACCESS_TOKEN }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ_BASE_URL: ${{ secrets.GROQ_BASE_URL }}
+          GROQ_MODEL: ${{ secrets.GROQ_MODEL }}
+          DEFAULT_CAPTION_MODE: ${{ secrets.DEFAULT_CAPTION_MODE }}
+          DEFAULT_TIMEZONE: ${{ secrets.DEFAULT_TIMEZONE }}
+          DEFAULT_SCHEDULE_CRON: ${{ secrets.DEFAULT_SCHEDULE_CRON }}
+          ENABLE_UPLOADS: "true"
+          APP_BASE_URL: ${{ secrets.APP_BASE_URL }}
+          MEDIA_PROXY_SECRET: ${{ secrets.MEDIA_PROXY_SECRET }}
+          MAX_UPLOAD_RETRIES: ${{ secrets.MAX_UPLOAD_RETRIES }}
+          MAX_VIDEO_SIZE_MB: ${{ secrets.MAX_VIDEO_SIZE_MB }}
+          STATUS_POLL_ATTEMPTS: ${{ secrets.STATUS_POLL_ATTEMPTS }}
+          STATUS_POLL_INTERVAL_MS: ${{ secrets.STATUS_POLL_INTERVAL_MS }}
+          GROQ_TIMEOUT_MS: ${{ secrets.GROQ_TIMEOUT_MS }}
+          POSTING_STATE_BACKEND: local-file
+          POSTING_STATE_FILE_PATH: .automation/posting-state.json
+          FORCE_RUN: ${{ github.event.inputs.force || 'false' }}
+        run: |
+          if [ "$FORCE_RUN" = "true" ]; then
+            npm run run -- --force
+          else
+            npm run run
+          fi
+
+      - name: Commit posting state
+        run: |
+          if [ -z "$(git status --porcelain -- .automation/posting-state.json)" ]; then
+            echo "No posting state changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .automation/posting-state.json
+          git commit -m "Update automation posting state"
+          git push

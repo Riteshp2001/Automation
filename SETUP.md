@@ -156,10 +156,30 @@ After you deploy:
 - `/api/manual?mode=preview` needs `Authorization: Bearer <ADMIN_API_SECRET>`
 - `/api/cron` needs `Authorization: Bearer <CRON_SECRET>`
 
-If you want 5-hour automation without Vercel Pro, use the GitHub Actions workflow in [`.github/workflows/trigger-vercel-cron.yml`](/d:/Scheduled/Car-Reels/.github/workflows/trigger-vercel-cron.yml) and add these GitHub repo secrets:
+If your Drive tracker folder is read-only, use [`.github/workflows/run-automation.yml`](/d:/Scheduled/Car-Reels/.github/workflows/run-automation.yml) instead of relying on Vercel cron. That workflow stores posting state in the repo itself.
 
-- `CRON_ENDPOINT_URL=https://car-reels-automation.vercel.app/api/cron`
-- `CRON_SECRET=your-cron-secret`
+Add these GitHub repository secrets:
+
+- `GOOGLE_SERVICE_ACCOUNT_JSON`
+- `GOOGLE_DRIVE_SOURCE_FOLDER_ID`
+- `GOOGLE_DRIVE_CONFIG_FILE_NAME`
+- `INSTAGRAM_AUTH_MODE`
+- `INSTAGRAM_USER_ID`
+- `META_USER_ACCESS_TOKEN`
+- `INSTAGRAM_PAGE_ACCESS_TOKEN`
+- `GROQ_API_KEY`
+- `GROQ_BASE_URL`
+- `GROQ_MODEL`
+- `DEFAULT_CAPTION_MODE`
+- `DEFAULT_TIMEZONE`
+- `DEFAULT_SCHEDULE_CRON`
+- `APP_BASE_URL`
+- `MEDIA_PROXY_SECRET`
+- `MAX_UPLOAD_RETRIES`
+- `MAX_VIDEO_SIZE_MB`
+- `STATUS_POLL_ATTEMPTS`
+- `STATUS_POLL_INTERVAL_MS`
+- `GROQ_TIMEOUT_MS`
 
 ## 9. What you absolutely must fill
 

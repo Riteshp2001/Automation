@@ -179,16 +179,15 @@ Authorization: Bearer <CRON_SECRET>
 
 That keeps the backend on Vercel while still allowing 3-hourly, 5-hourly, 6-hourly, or other custom schedules.
 
-There is also a ready-made GitHub Actions scheduler in [`.github/workflows/trigger-vercel-cron.yml`](./.github/workflows/trigger-vercel-cron.yml). Set these GitHub repository secrets:
+If your Drive tracker folder is read-only, use the GitHub Actions workflow in [`.github/workflows/run-automation.yml`](./.github/workflows/run-automation.yml) instead. It:
 
-- `CRON_ENDPOINT_URL`
-- `CRON_SECRET`
+- runs every 5 hours on GitHub Actions
+- reads the next video from Drive
+- uses your Vercel deployment only for the signed `/api/media` proxy
+- stores posted history in `.automation/posting-state.json` in the repo
+- commits that state file automatically after each successful post
 
-Example endpoint:
-
-```text
-https://car-reels-automation.vercel.app/api/cron
-```
+GitHub Actions schedules run in UTC, so the workflow is already set to match `0 */5 * * *` in `Asia/Kolkata`.
 
 ## Manual endpoints
 
