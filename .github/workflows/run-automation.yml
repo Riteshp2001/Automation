@@ -60,9 +60,10 @@ jobs:
           GROQ_TIMEOUT_MS: ${{ secrets.GROQ_TIMEOUT_MS }}
           POSTING_STATE_BACKEND: local-file
           POSTING_STATE_FILE_PATH: .automation/posting-state.json
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
           FORCE_RUN: ${{ github.event.inputs.force || 'false' }}
         run: |
-          if [ "$FORCE_RUN" = "true" ]; then
+          if [ "$FORCE_RUN" = "true" ] || [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
             npm run run -- --force
           else
             npm run run
