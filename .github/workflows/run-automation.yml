@@ -1,4 +1,4 @@
-name: Run Automation
+Name: Run Automation
 
 on:
   workflow_dispatch:
@@ -8,7 +8,8 @@ on:
         required: false
         default: "false"
   schedule:
-    - cron: "30 4,9,14,18,23 * * *"
+    # Runs every hour at the start of the hour
+    - cron: "0 * * * *"
 
 permissions:
   contents: write
@@ -22,17 +23,61 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Determine if we should run today
+        id: scheduler
+        run: |
+          # Use the date (YYYY-MM-DD) as a seed for the random generator
+          # This ensures the two "random" hours remain the same for the entire day
+          SEED=$(date +%F | tr -d '-')
+          
+          # Generate two unique random hours between 0 and 23
+          # We use a simple bash loop with the seed
+          RANDOM_HOURS=$(awk -v seed=$SEED 'BEGIN {
+            srand(seed);
+            while (length(selected) < 2) {
+              h = int(rand() * 24);
+              if (!(h in picked)) {
+                picked[h] = 1;
+                selected[length(selected)] = h;
+              }
+            }
+            print selected[0], selected[1];
+          }')
+          
+          CURRENT_HOUR=$(date +%H | sed 's/^0//') # Get current hour, strip leading zero
+          
+          echo "Today's scheduled hours: $RANDOM_HOURS"
+          echo "Current hour: $CURRENT_HOUR"
+          
+          SHOULD_RUN="false"
+          for HOUR in $RANDOM_HOURS; do
+            if [ "$CURRENT_HOUR" -eq "$HOUR" ]; then
+              SHOULD_RUN="true"
+            fi
+          done
+
+          # If it's a manual dispatch (force), always run
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+             SHOULD_RUN="true"
+          fi
+
+          echo "should_run=$SHOULD_RUN" >> $GITHUB_OUTPUT
+
       - name: Set up Node.js
+        if: steps.scheduler.outputs.should_run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
       - name: Install dependencies
+        if: steps.scheduler.outputs.should_run == 'true'
         run: npm ci
 
       - name: Run the next scheduled upload
+        if: steps.scheduler.outputs.should_run == 'true'
         env:
+          # ... (All your existing env variables)
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           GOOGLE_DRIVE_SOURCE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_SOURCE_FOLDER_ID }}
           GOOGLE_DRIVE_CONFIG_FILE_NAME: ${{ secrets.GOOGLE_DRIVE_CONFIG_FILE_NAME }}
@@ -70,6 +115,7 @@ jobs:
           fi
 
       - name: Commit posting state
+        if: steps.scheduler.outputs.should_run == 'true'
         run: |
           if [ -z "$(git status --porcelain -- .automation/posting-state.json)" ]; then
             echo "No posting state changes to commit."
