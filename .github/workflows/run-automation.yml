@@ -8,7 +8,12 @@ on:
         required: false
         default: "false"
   schedule:
-    - cron: "30 4,9,14,18,23 * * *"
+    # Runs every hour at the start of the hour
+    - cron: "0 * * * *"
+
+concurrency:
+  group: run-automation-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -22,17 +27,57 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Determine if we should run today
+        id: scheduler
+        run: |
+          # Use the date (YYYY-MM-DD) as a seed for the random generator
+          # This ensures the two "random" hours remain the same for the entire day
+          SEED=$(date +%F | tr -d '-')
+          
+          # Derive two deterministic hours from the daily seed.
+          HASH=$(printf '%s' "$SEED" | sha256sum | cut -c1-8)
+          HOUR_ONE=$((16#${HASH:0:2} % 24))
+          HOUR_TWO=$((16#${HASH:2:2} % 24))
+
+          if [ "$HOUR_TWO" -eq "$HOUR_ONE" ]; then
+            HOUR_TWO=$(( (HOUR_ONE + 12) % 24 ))
+          fi
+
+          RANDOM_HOURS="$HOUR_ONE $HOUR_TWO"
+          CURRENT_HOUR=$((10#$(date +%H)))
+          
+          echo "Today's scheduled hours: $RANDOM_HOURS"
+          echo "Current hour: $CURRENT_HOUR"
+          
+          SHOULD_RUN="false"
+          for HOUR in $RANDOM_HOURS; do
+            if [ "$CURRENT_HOUR" -eq "$HOUR" ]; then
+              SHOULD_RUN="true"
+            fi
+          done
+
+          # If it's a manual dispatch (force), always run
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+             SHOULD_RUN="true"
+          fi
+
+          echo "should_run=$SHOULD_RUN" >> $GITHUB_OUTPUT
+
       - name: Set up Node.js
+        if: steps.scheduler.outputs.should_run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
       - name: Install dependencies
+        if: steps.scheduler.outputs.should_run == 'true'
         run: npm ci
 
       - name: Run the next scheduled upload
+        if: steps.scheduler.outputs.should_run == 'true'
         env:
+          # ... (All your existing env variables)
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           GOOGLE_DRIVE_SOURCE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_SOURCE_FOLDER_ID }}
           GOOGLE_DRIVE_CONFIG_FILE_NAME: ${{ secrets.GOOGLE_DRIVE_CONFIG_FILE_NAME }}
@@ -70,14 +115,93 @@ jobs:
           fi
 
       - name: Commit posting state
+        if: steps.scheduler.outputs.should_run == 'true'
         run: |
           if [ -z "$(git status --porcelain -- .automation/posting-state.json)" ]; then
             echo "No posting state changes to commit."
             exit 0
           fi
 
+          BRANCH_NAME="${GITHUB_REF_NAME:-main}"
+          REMOTE_STATE_FILE="$(mktemp)"
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "$BRANCH_NAME"
+
+          if git cat-file -e "origin/$BRANCH_NAME:.automation/posting-state.json" 2>/dev/null; then
+            git show "origin/$BRANCH_NAME:.automation/posting-state.json" > "$REMOTE_STATE_FILE"
+            node - "$REMOTE_STATE_FILE" ".automation/posting-state.json" <<'EOF'
+            const fs = require("fs");
+            
+            const [remotePath, localPath] = process.argv.slice(2);
+            
+            function readState(path) {
+              try {
+                const parsed = JSON.parse(fs.readFileSync(path, "utf8"));
+                return {
+                  postedFileIds: Array.isArray(parsed.postedFileIds) ? parsed.postedFileIds.map(String) : [],
+                  history: Array.isArray(parsed.history) ? parsed.history : []
+                };
+              } catch {
+                return {
+                  postedFileIds: [],
+                  history: []
+                };
+              }
+            }
+            
+            function normalizeHistoryEntry(entry) {
+              return {
+                ...entry,
+                fileId: entry && entry.fileId != null ? String(entry.fileId) : undefined,
+                uploadFileId: entry && entry.uploadFileId != null ? String(entry.uploadFileId) : undefined,
+                instagramMediaId:
+                  entry && entry.instagramMediaId != null ? String(entry.instagramMediaId) : undefined
+              };
+            }
+            
+            const remoteState = readState(remotePath);
+            const localState = readState(localPath);
+            const history = [];
+            const seenHistoryEntries = new Set();
+            
+            for (const entry of [...remoteState.history, ...localState.history]) {
+              const normalizedEntry = normalizeHistoryEntry(entry);
+              const key = JSON.stringify([
+                normalizedEntry.fileId || "",
+                normalizedEntry.uploadFileId || "",
+                normalizedEntry.postedAt || "",
+                normalizedEntry.instagramMediaId || "",
+                normalizedEntry.name || ""
+              ]);
+            
+              if (!seenHistoryEntries.has(key)) {
+                seenHistoryEntries.add(key);
+                history.push(normalizedEntry);
+              }
+            }
+            
+            history.sort((left, right) =>
+              String(left.postedAt || "").localeCompare(String(right.postedAt || ""))
+            );
+            
+            const mergedState = {
+              postedFileIds: [...new Set([...remoteState.postedFileIds, ...localState.postedFileIds])],
+              history
+            };
+            
+            fs.writeFileSync(localPath, `${JSON.stringify(mergedState, null, 2)}\n`);
+            EOF
+          fi
+
           git add .automation/posting-state.json
+          if git diff --cached --quiet; then
+            echo "Posting state is already up to date."
+            exit 0
+          fi
+
           git commit -m "Update automation posting state"
-          git push
+          git fetch origin "$BRANCH_NAME"
+          git rebase "origin/$BRANCH_NAME"
+          git push origin HEAD:"$BRANCH_NAME"
